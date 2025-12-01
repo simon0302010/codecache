@@ -1,5 +1,7 @@
 mod app;
 
 fn main() {
-    println!(""):
+    let mut codecache = app::CodeCache::new();
+
+    codecache.run();
 }
