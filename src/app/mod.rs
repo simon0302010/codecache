@@ -1,17 +1,41 @@
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::{
-    Frame,
-    layout::{
-        Constraint::{Length, Min},
-        Layout, Margin,
-    },
-    style::{Style, Stylize},
-    widgets::{Block, Borders, List, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    layout::Constraint::{Length, Min},
+    prelude::*,
+    widgets::{Block, Borders, List, ListItem, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
+use tui_widget_list::{ListBuilder, ListState, ListView};
 
 pub struct CodeCache {
     running: bool,
     scroll_position: usize,
+    list_state: ListState,
+}
+
+#[derive(Debug, Clone)]
+struct CodeSnippet {
+    text: String,
+    style: Style,
+}
+
+struct SnippetList {
+    state: ListState,
+    items: Vec<CodeSnippet>,
+}
+
+impl CodeSnippet {
+    pub fn new<T: Into<String>>(text: T) -> Self {
+        Self {
+            text: text.into(),
+            style: Style::default(),
+        }
+    }
+}
+
+impl Widget for CodeSnippet {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        Line::from(self.text).style(self.style).render(area, buf);
+    }
 }
 
 impl CodeCache {
@@ -19,6 +43,7 @@ impl CodeCache {
         CodeCache {
             running: true,
             scroll_position: 0,
+            list_state: ListState::default(),
         }
     }
 
@@ -36,13 +61,11 @@ impl CodeCache {
     fn draw(&self, frame: &mut Frame) {
         let vertical = Layout::vertical([Length(1), Min(0), Length(1)]);
         let [title_area, main_area, status_area] = vertical.areas(frame.area());
-        // let horizontal = Layout::horizontal([Fill(1); 2]);
-        // let [left_area, right_area] = horizontal.areas(main_area);
 
         // define code snippets
-        let snippets = (1..=100)
-            .map(|i| format!("Item {}", i))
-            .collect::<Vec<String>>();
+        let snippets: Vec<CodeSnippet> = (1..=100)
+            .map(|i| CodeSnippet::new(format!("Item {}", i)))
+            .collect();
 
         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
             .begin_symbol(Some("↑"))
@@ -65,15 +88,20 @@ impl CodeCache {
             status_area,
         );
         frame.render_widget(
-            List::new(snippets).block(
-                Block::new()
-                    .borders(Borders::TOP | Borders::BOTTOM)
-                    .title("Snippets")
-                    .title_alignment(ratatui::layout::Alignment::Center),
-            ),
+            SnippetList {
+                state: self.list_state.clone(),
+                items: snippets,
+            },
             main_area,
         );
-        frame.render_stateful_widget(scrollbar, main_area.inner(Margin { vertical: 1, horizontal: 0 }), &mut scrollbar_state);
+        frame.render_stateful_widget(
+            scrollbar,
+            main_area.inner(Margin {
+                vertical: 1,
+                horizontal: 0,
+            }),
+            &mut scrollbar_state,
+        );
     }
 
     fn handle_events(&mut self) {
@@ -84,5 +112,33 @@ impl CodeCache {
             },
             _ => {}
         }
+    }
+}
+
+impl ratatui::prelude::Widget for SnippetList {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let items = self.items;
+        let item_count = items.len();
+
+        let builder = ListBuilder::new(move |context| {
+            let mut item = items[context.index].clone();
+
+            if context.index % 2 == 0 {
+                item.style = Style::default().bg(Color::Rgb(28, 28, 32));
+            } else {
+                item.style = Style::default().bg(Color::Black);
+            }
+
+            if context.is_selected {
+                item.style = Style::default()
+                    .bg(Color::Rgb(255, 153, 0))
+                    .fg(Color::Rgb(28, 28, 32));
+            }
+
+            (item, 1)
+        });
+
+        let list = ListView::new(builder, item_count);
+        list.render(area, buf, &mut self.state.clone());
     }
 }
