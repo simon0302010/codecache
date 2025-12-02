@@ -1,8 +1,16 @@
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
-use ratatui::{Frame, text::Text};
+use ratatui::{
+    Frame,
+    layout::{
+        Constraint::{Fill, Length, Min},
+        Layout,
+    },
+    style::{Style, Stylize},
+    widgets::Block,
+};
 
 pub struct CodeCache {
-    running: bool
+    running: bool,
 }
 
 impl CodeCache {
@@ -22,8 +30,26 @@ impl CodeCache {
     }
 
     fn draw(&self, frame: &mut Frame) {
-        let text = Text::raw("Hello World!");
-        frame.render_widget(text, frame.area());
+        let vertical = Layout::vertical([Length(1), Min(0), Length(1)]);
+        let [title_area, main_area, status_area] = vertical.areas(frame.area());
+        let horizontal = Layout::horizontal([Fill(1); 2]);
+        let [left_area, right_area] = horizontal.areas(main_area);
+
+        frame.render_widget(
+            Block::new()
+                .title("CodeCache")
+                .title_alignment(ratatui::layout::Alignment::Center)
+                .title_style(Style::new().red().bold()),
+            title_area,
+        );
+        frame.render_widget(
+            Block::new()
+                .title("0 Snippets saved")
+                .title_alignment(ratatui::layout::Alignment::Center),
+            status_area,
+        );
+        frame.render_widget(Block::bordered().title("Left"), left_area);
+        frame.render_widget(Block::bordered().title("Right"), right_area);
     }
 
     fn handle_events(&mut self) {
