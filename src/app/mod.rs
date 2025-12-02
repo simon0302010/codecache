@@ -49,8 +49,9 @@ impl CodeCache {
         let snippets: Vec<CodeSnippet> = (1..=100)
             .map(|i| {
                 CodeSnippet::new(
-                    format!("Item {}", i),
+                    format!("{}", i),
                     "Content Line 1\nContent Line 2".to_string(),
+                    "This is the code".to_string(),
                 )
             })
             .collect();
@@ -95,7 +96,7 @@ impl CodeCache {
             Block::new()
                 .title(format!("CodeCache v{}", env!("CARGO_PKG_VERSION")))
                 .title_alignment(ratatui::layout::Alignment::Center)
-                .title_style(Style::new().red().bold()),
+                .title_style(Style::new().fg(Color::Rgb(251, 73, 52)).bold()),
             title_area,
         );
         frame.render_widget(
