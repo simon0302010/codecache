@@ -32,6 +32,12 @@ impl CodeSnippet {
             title: title.into(),
         }
     }
+
+    pub fn height(&self) -> u16 {
+        let content_lines = self.text.lines().count() as u16;
+        let border_height = 2;
+        content_lines + border_height
+    }
 }
 
 impl Widget for CodeSnippet {
@@ -162,7 +168,9 @@ impl<'a> ratatui::prelude::Widget for SnippetList<'a> {
                     .fg(Color::Rgb(28, 28, 32));
             }
 
-            (item, 10)
+            let item_height = item.height();
+
+            (item, item_height)
         });
 
         let list = ListView::new(builder, item_count);
