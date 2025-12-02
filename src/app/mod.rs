@@ -16,7 +16,8 @@ pub struct CodeCache {
 struct CodeSnippet {
     title: String,
     text: String,
-    style: Style,
+    text_style: Style,
+    border_style: Style,
 }
 
 struct SnippetList<'a> {
@@ -28,7 +29,8 @@ impl CodeSnippet {
     pub fn new<T: Into<String>>(title: T, text: T) -> Self {
         Self {
             text: text.into(),
-            style: Style::default(),
+            text_style: Style::default(),
+            border_style: Style::default(),
             title: title.into(),
         }
     }
@@ -47,13 +49,14 @@ impl Widget for CodeSnippet {
 
         let block = Block::bordered()
             .title(self.title)
-            .title_alignment(Alignment::Center);
+            .title_alignment(Alignment::Center)
+            .border_style(self.border_style);
 
         let inner_area = block.inner(block_area);
         block.render(block_area, buf);
 
         Paragraph::new(self.text)
-            .style(self.style)
+            .style(self.text_style)
             .render(inner_area, buf);
     }
 }
@@ -132,7 +135,7 @@ impl CodeCache {
     fn handle_events(&mut self) {
         match event::read().expect("failed to read event") {
             Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
-                KeyCode::Char('q') => self.running = false,
+                KeyCode::Char('q') | KeyCode::Char('Q') => self.running = false,
                 KeyCode::Down => {
                     self.list_state.next();
                     self.scroll_state.next();
@@ -157,15 +160,19 @@ impl<'a> ratatui::prelude::Widget for SnippetList<'a> {
             let mut item = items[context.index].clone();
 
             if context.index % 2 == 0 {
-                item.style = Style::default().bg(Color::Rgb(28, 28, 32));
+                item.text_style = Style::default().bg(Color::Rgb(60, 56, 54));
             } else {
-                item.style = Style::default().bg(Color::Rgb(24, 24, 28));
+                item.text_style = Style::default().bg(Color::Rgb(80, 73, 69));
             }
 
+            // border color stays the same
+            item.border_style = Style::default().fg(Color::Rgb(124, 111, 100));
+
             if context.is_selected {
-                item.style = Style::default()
-                    .bg(Color::Rgb(255, 153, 0))
+                item.text_style = Style::default()
+                    .bg(Color::Rgb(254, 128, 25))
                     .fg(Color::Rgb(28, 28, 32));
+                item.border_style = Style::default().fg(Color::Rgb(250, 189, 47));
             }
 
             let item_height = item.height();
