@@ -1,8 +1,8 @@
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::{
-    layout::Constraint::{Length, Min},
+    layout::Constraint::{Length, Min, Percentage},
     prelude::*,
-    widgets::{Block, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
@@ -14,6 +14,7 @@ pub struct CodeCache {
 
 #[derive(Debug, Clone)]
 struct CodeSnippet {
+    title: String,
     text: String,
     style: Style,
 }
@@ -24,17 +25,30 @@ struct SnippetList<'a> {
 }
 
 impl CodeSnippet {
-    pub fn new<T: Into<String>>(text: T) -> Self {
+    pub fn new<T: Into<String>>(title: T, text: T) -> Self {
         Self {
             text: text.into(),
             style: Style::default(),
+            title: title.into(),
         }
     }
 }
 
 impl Widget for CodeSnippet {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        Line::from(self.text).style(self.style).render(area, buf);
+        let [_, block_area, _] =
+            Layout::horizontal([Percentage(25), Percentage(50), Percentage(25)]).areas(area);
+
+        let block = Block::bordered()
+            .title(self.title)
+            .title_alignment(Alignment::Center);
+
+        let inner_area = block.inner(block_area);
+        block.render(block_area, buf);
+
+        Paragraph::new(self.text)
+            .style(self.style)
+            .render(inner_area, buf);
     }
 }
 
@@ -64,7 +78,12 @@ impl CodeCache {
 
         // define code snippets
         let snippets: Vec<CodeSnippet> = (1..=100)
-            .map(|i| CodeSnippet::new(format!("Item {}", i)))
+            .map(|i| {
+                CodeSnippet::new(
+                    format!("Item {}", i),
+                    "Content Line 1\nContent Line 2".to_string(),
+                )
+            })
             .collect();
 
         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
@@ -143,7 +162,7 @@ impl<'a> ratatui::prelude::Widget for SnippetList<'a> {
                     .fg(Color::Rgb(28, 28, 32));
             }
 
-            (item, 1)
+            (item, 10)
         });
 
         let list = ListView::new(builder, item_count);
