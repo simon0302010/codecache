@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::{
     layout::Constraint::{Length, Min, Percentage},
@@ -10,6 +12,8 @@ pub struct CodeCache {
     running: bool,
     scroll_state: ScrollbarState,
     list_state: ListState,
+    last_move: Instant,
+    last_move_direction: String,
 }
 
 #[derive(Debug, Clone)]
@@ -67,6 +71,8 @@ impl CodeCache {
             running: true,
             scroll_state: ScrollbarState::default(),
             list_state: ListState::default(),
+            last_move: Instant::now() - Duration::from_secs(1),
+            last_move_direction: String::new(),
         }
     }
 
@@ -95,9 +101,38 @@ impl CodeCache {
             })
             .collect();
 
+        // focused styles
+        let general_scrollbar_style = Style::default().fg(Color::Rgb(102, 92, 84));
+        let focused_scrollbal_style = Style::default().fg(Color::Rgb(250, 130, 28));
+
+        let is_active = self.last_move.elapsed().as_millis() <= 500;
+
+        let scrollbar_style = if is_active {
+            focused_scrollbal_style
+        } else {
+            general_scrollbar_style
+        };
+
+        let arrow_up_style = if is_active && self.last_move_direction.as_str() == "up" {
+            focused_scrollbal_style
+        } else {
+            general_scrollbar_style
+        };
+
+        let arrow_down_style = if is_active && self.last_move_direction.as_str() == "down" {
+            focused_scrollbal_style
+        } else {
+            general_scrollbar_style
+        };
+
         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-            .begin_symbol(Some("↑"))
-            .end_symbol(Some("↓"));
+            .begin_symbol(Some("█"))
+            .end_symbol(Some("█"))
+            .track_symbol(Some("┃"))
+            .thumb_style(scrollbar_style)
+            .track_style(general_scrollbar_style)
+            .begin_style(arrow_up_style)
+            .end_style(arrow_down_style);
 
         let selected = self.list_state.selected.unwrap_or(0);
         self.scroll_state = ScrollbarState::new(snippets.len()).position(selected);
@@ -133,20 +168,26 @@ impl CodeCache {
     }
 
     fn handle_events(&mut self) {
-        match event::read().expect("failed to read event") {
-            Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
-                KeyCode::Char('q') | KeyCode::Char('Q') => self.running = false,
-                KeyCode::Down => {
-                    self.list_state.next();
-                    self.scroll_state.next();
-                }
-                KeyCode::Up => {
-                    self.list_state.previous();
-                    self.scroll_state.prev();
-                }
+        if event::poll(Duration::from_millis(16)).expect("failed to poll evnet") {
+            match event::read().expect("failed to read event") {
+                Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
+                    KeyCode::Char('q') | KeyCode::Char('Q') => self.running = false,
+                    KeyCode::Down | KeyCode::PageDown => {
+                        self.list_state.next();
+                        self.scroll_state.next();
+                        self.last_move = Instant::now();
+                        self.last_move_direction = "down".to_string();
+                    }
+                    KeyCode::Up | KeyCode::PageUp => {
+                        self.list_state.previous();
+                        self.scroll_state.prev();
+                        self.last_move = Instant::now();
+                        self.last_move_direction = "up".to_string();
+                    }
+                    _ => {}
+                },
                 _ => {}
-            },
-            _ => {}
+            }
         }
     }
 }
@@ -180,7 +221,7 @@ impl<'a> ratatui::prelude::Widget for SnippetList<'a> {
             (item, item_height)
         });
 
-        let list = ListView::new(builder, item_count);
+        let list = ListView::new(builder, item_count).scroll_padding(4);
         list.render(area, buf, self.state);
     }
 }
