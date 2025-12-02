@@ -2,13 +2,13 @@ use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::{
     layout::Constraint::{Length, Min},
     prelude::*,
-    widgets::{Block, Borders, List, ListItem, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
 pub struct CodeCache {
     running: bool,
-    scroll_position: usize,
+    scroll_state: ScrollbarState,
     list_state: ListState,
 }
 
@@ -18,8 +18,8 @@ struct CodeSnippet {
     style: Style,
 }
 
-struct SnippetList {
-    state: ListState,
+struct SnippetList<'a> {
+    state: &'a mut ListState,
     items: Vec<CodeSnippet>,
 }
 
@@ -42,7 +42,7 @@ impl CodeCache {
     pub fn new() -> Self {
         CodeCache {
             running: true,
-            scroll_position: 0,
+            scroll_state: ScrollbarState::default(),
             list_state: ListState::default(),
         }
     }
@@ -58,7 +58,7 @@ impl CodeCache {
         ratatui::restore();
     }
 
-    fn draw(&self, frame: &mut Frame) {
+    fn draw(&mut self, frame: &mut Frame) {
         let vertical = Layout::vertical([Length(1), Min(0), Length(1)]);
         let [title_area, main_area, status_area] = vertical.areas(frame.area());
 
@@ -71,8 +71,8 @@ impl CodeCache {
             .begin_symbol(Some("↑"))
             .end_symbol(Some("↓"));
 
-        let mut scrollbar_state =
-            ScrollbarState::new(snippets.len()).position(self.scroll_position);
+        let selected = self.list_state.selected.unwrap_or(0);
+        self.scroll_state = ScrollbarState::new(snippets.len()).position(selected);
 
         frame.render_widget(
             Block::new()
@@ -89,7 +89,7 @@ impl CodeCache {
         );
         frame.render_widget(
             SnippetList {
-                state: self.list_state.clone(),
+                state: &mut self.list_state,
                 items: snippets,
             },
             main_area,
@@ -100,7 +100,7 @@ impl CodeCache {
                 vertical: 1,
                 horizontal: 0,
             }),
-            &mut scrollbar_state,
+            &mut self.scroll_state,
         );
     }
 
@@ -108,6 +108,14 @@ impl CodeCache {
         match event::read().expect("failed to read event") {
             Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
                 KeyCode::Char('q') => self.running = false,
+                KeyCode::Down => {
+                    self.list_state.next();
+                    self.scroll_state.next();
+                }
+                KeyCode::Up => {
+                    self.list_state.previous();
+                    self.scroll_state.prev();
+                }
                 _ => {}
             },
             _ => {}
@@ -115,7 +123,7 @@ impl CodeCache {
     }
 }
 
-impl ratatui::prelude::Widget for SnippetList {
+impl<'a> ratatui::prelude::Widget for SnippetList<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let items = self.items;
         let item_count = items.len();
@@ -126,7 +134,7 @@ impl ratatui::prelude::Widget for SnippetList {
             if context.index % 2 == 0 {
                 item.style = Style::default().bg(Color::Rgb(28, 28, 32));
             } else {
-                item.style = Style::default().bg(Color::Black);
+                item.style = Style::default().bg(Color::Rgb(24, 24, 28));
             }
 
             if context.is_selected {
@@ -139,6 +147,6 @@ impl ratatui::prelude::Widget for SnippetList {
         });
 
         let list = ListView::new(builder, item_count);
-        list.render(area, buf, &mut self.state.clone());
+        list.render(area, buf, self.state);
     }
 }
