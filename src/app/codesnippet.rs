@@ -1,5 +1,5 @@
 use ratatui::{
-    layout::Constraint::{Length, Percentage},
+    layout::Constraint::{Length, Percentage, Min, Fill},
     prelude::*,
     widgets::{Block, Paragraph},
 };
@@ -46,7 +46,7 @@ impl Widget for CodeSnippet {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // Center the card horizontally
         let [_, block_area, _] =
-            Layout::horizontal([Percentage(25), Percentage(50), Percentage(25)]).areas(area);
+            Layout::horizontal([Fill(1), Min(70), Fill(1)]).areas(area);
 
         // Outer block with title
         let block = Block::bordered()
