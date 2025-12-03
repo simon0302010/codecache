@@ -87,7 +87,9 @@ impl<'a> Widget for CodeSnippet<'a> {
             None => &raw_code_text,
         };
 
-        Paragraph::new(code_text.clone()).render(code_inner, buf);
+        Paragraph::new(code_text.clone())
+            .style(self.code_style)
+            .render(code_inner, buf);
     }
 }
 
