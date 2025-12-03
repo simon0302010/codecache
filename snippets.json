@@ -1,0 +1,27 @@
+[
+    {
+        "title": "Hello World",
+        "desc": "Basic hello world in Rust",
+        "code": "fn main() { println!(\"Hello, world!\"); }"
+    },
+    {
+        "title": "Sum Two Numbers",
+        "desc": "Function to sum two integers",
+        "code": "fn sum(a: i32, b: i32) -> i32 { a + b }"
+    },
+    {
+        "title": "Reverse String",
+        "desc": "Reverse a string using Rust",
+        "code": "fn reverse(s: &str) -> String { s.chars().rev().collect() }"
+    },
+    {
+        "title": "Read File",
+        "desc": "Read contents of a file",
+        "code": "use std::fs; fn read_file(path: &str) -> String { fs::read_to_string(path).unwrap() }"
+    },
+    {
+        "title": "Fibonacci",
+        "desc": "Compute nth Fibonacci number",
+        "code": "fn fib(n: u32) -> u32 { if n < 2 { n } else { fib(n-1) + fib(n-2) } }"
+    }
+]

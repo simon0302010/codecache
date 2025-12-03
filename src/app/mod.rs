@@ -1,7 +1,10 @@
 mod codesnippet;
 mod highlight;
 
-use codesnippet::*;
+// export for main.rs
+pub use codesnippet::{SaveSnippet, SnippetList};
+
+use codesnippet::CodeSnippet;
 use highlight::Highlighter;
 
 use std::time::{Duration, Instant};
@@ -14,17 +17,24 @@ use ratatui::{
 };
 use tui_widget_list::ListState;
 
-pub struct CodeCache {
+pub struct CodeCache<'a> {
     running: bool,
     scroll_state: ScrollbarState,
     list_state: ListState,
     last_move: Instant,
     last_move_direction: String,
     highlighter: Highlighter,
+    snippets: Vec<CodeSnippet<'a>>,
 }
 
-impl CodeCache {
-    pub fn new() -> Self {
+impl<'a> CodeCache<'a> {
+    pub fn new(snippets: Vec<SaveSnippet>) -> Self {
+        let snippets: Vec<CodeSnippet<'a>> = snippets
+            .clone()
+            .into_iter()
+            .map(|snip| CodeSnippet::new(snip.title, snip.desc, snip.code))
+            .collect();
+
         CodeCache {
             running: true,
             scroll_state: ScrollbarState::default(),
@@ -32,6 +42,7 @@ impl CodeCache {
             last_move: Instant::now() - Duration::from_secs(1),
             last_move_direction: String::new(),
             highlighter: Highlighter::new(),
+            snippets,
         }
     }
 
@@ -49,17 +60,6 @@ impl CodeCache {
     fn draw(&mut self, frame: &mut Frame) {
         let vertical = Layout::vertical([Length(1), Min(0), Length(1)]);
         let [title_area, main_area, status_area] = vertical.areas(frame.area());
-
-        // define code snippets
-        let snippets: Vec<CodeSnippet> = (1..=100)
-            .map(|i| {
-                CodeSnippet::new(
-                    format!("{}", i),
-                    "Content Line 1\nContent Line 2".to_string(),
-                    "pub struct Wow { hi: u64 }\nfn blah() -> u64 {}".to_string(),
-                )
-            })
-            .collect();
 
         // focused styles
         let general_scrollbar_style = Style::default().fg(Color::Rgb(102, 92, 84));
@@ -95,7 +95,7 @@ impl CodeCache {
             .end_style(arrow_down_style);
 
         let selected = self.list_state.selected.unwrap_or(0);
-        self.scroll_state = ScrollbarState::new(snippets.len()).position(selected);
+        self.scroll_state = ScrollbarState::new(self.snippets.len()).position(selected);
 
         frame.render_widget(
             Block::new()
@@ -106,14 +106,14 @@ impl CodeCache {
         );
         frame.render_widget(
             Block::new()
-                .title(format!("{} snippets in storage", snippets.len()))
+                .title(format!("{} snippets in storage", self.snippets.len()))
                 .title_alignment(ratatui::layout::Alignment::Center),
             status_area,
         );
         frame.render_widget(
             SnippetList {
                 state: &mut self.list_state,
-                items: snippets,
+                items: self.snippets.clone(),
                 highlighter: &self.highlighter,
             },
             main_area,

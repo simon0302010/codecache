@@ -3,9 +3,17 @@ use ratatui::{
     prelude::*,
     widgets::{Block, Paragraph},
 };
+use serde::{Deserialize, Serialize};
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
 use crate::app::highlight::Highlighter;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaveSnippet {
+    pub title: String,
+    pub desc: String,
+    pub code: String,
+}
 
 #[derive(Debug, Clone)]
 pub struct CodeSnippet<'a> {
@@ -74,10 +82,8 @@ impl<'a> Widget for CodeSnippet<'a> {
             .render(desc_area, buf);
 
         // Render code block
-        let code_block = Block::bordered()
-            .border_style(self.code_frame_style)
-            .title("Placeholder for Programming Language")
-            .title_alignment(Alignment::Center);
+        let code_block = Block::bordered().border_style(self.code_frame_style);
+
         let code_inner = code_block.inner(code_area);
         code_block.render(code_area, buf);
 
