@@ -1,12 +1,14 @@
 use ratatui::{
-    layout::Constraint::{Length, Percentage, Min, Fill},
+    layout::Constraint::{Fill, Length, Min},
     prelude::*,
     widgets::{Block, Paragraph},
 };
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
+use crate::app::highlight::Highlighter;
+
 #[derive(Debug, Clone)]
-pub struct CodeSnippet {
+pub struct CodeSnippet<'a> {
     title: String,
     text: String,
     code: String,
@@ -14,14 +16,16 @@ pub struct CodeSnippet {
     code_style: Style,
     code_frame_style: Style,
     border_style: Style,
+    highlighted_code: Option<Text<'a>>,
 }
 
 pub struct SnippetList<'a> {
     pub state: &'a mut ListState,
-    pub items: Vec<CodeSnippet>,
+    pub items: Vec<CodeSnippet<'a>>,
+    pub highlighter: &'a Highlighter,
 }
 
-impl CodeSnippet {
+impl<'a> CodeSnippet<'a> {
     pub fn new<T: Into<String>>(title: T, text: T, code: T) -> Self {
         Self {
             text: text.into(),
@@ -31,6 +35,7 @@ impl CodeSnippet {
             code_style: Style::default(),
             code_frame_style: Style::default(),
             title: title.into(),
+            highlighted_code: None,
         }
     }
 
@@ -42,11 +47,10 @@ impl CodeSnippet {
     }
 }
 
-impl Widget for CodeSnippet {
+impl<'a> Widget for CodeSnippet<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // Center the card horizontally
-        let [_, block_area, _] =
-            Layout::horizontal([Fill(1), Min(70), Fill(1)]).areas(area);
+        let [_, block_area, _] = Layout::horizontal([Fill(1), Min(70), Fill(1)]).areas(area);
 
         // Outer block with title
         let block = Block::bordered()
@@ -77,9 +81,13 @@ impl Widget for CodeSnippet {
         let code_inner = code_block.inner(code_area);
         code_block.render(code_area, buf);
 
-        Paragraph::new(self.code.clone())
-            .style(self.code_style)
-            .render(code_inner, buf);
+        let raw_code_text = Text::raw(&self.code);
+        let code_text = match &self.highlighted_code {
+            Some(highlighted) => highlighted,
+            None => &raw_code_text,
+        };
+
+        Paragraph::new(code_text.clone()).render(code_inner, buf);
     }
 }
 
@@ -87,13 +95,14 @@ impl<'a> ratatui::prelude::Widget for SnippetList<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let items = self.items;
         let item_count = items.len();
+        let highlighter = self.highlighter;
 
         let builder = ListBuilder::new(move |context| {
             let mut item = items[context.index].clone();
 
-            item.text_style = Style::default().fg(Color::Rgb(120, 112, 108));
+            item.highlighted_code = Some(highlighter.highlight(item.code.clone()));
 
-            // border color stays the same
+            item.text_style = Style::default().fg(Color::Rgb(120, 112, 108));
             item.border_style = Style::default().fg(Color::Rgb(124, 111, 100));
             item.code_frame_style = Style::default().fg(Color::Rgb(124, 111, 100));
 

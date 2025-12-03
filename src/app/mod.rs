@@ -1,5 +1,8 @@
 mod codesnippet;
+mod highlight;
+
 use codesnippet::*;
+use highlight::Highlighter;
 
 use std::time::{Duration, Instant};
 
@@ -17,6 +20,7 @@ pub struct CodeCache {
     list_state: ListState,
     last_move: Instant,
     last_move_direction: String,
+    highlighter: Highlighter,
 }
 
 impl CodeCache {
@@ -27,6 +31,7 @@ impl CodeCache {
             list_state: ListState::default(),
             last_move: Instant::now() - Duration::from_secs(1),
             last_move_direction: String::new(),
+            highlighter: Highlighter::new(),
         }
     }
 
@@ -51,7 +56,7 @@ impl CodeCache {
                 CodeSnippet::new(
                     format!("{}", i),
                     "Content Line 1\nContent Line 2".to_string(),
-                    "This is the code".to_string(),
+                    "pub struct Wow { hi: u64 }\nfn blah() -> u64 {}".to_string(),
                 )
             })
             .collect();
@@ -109,6 +114,7 @@ impl CodeCache {
             SnippetList {
                 state: &mut self.list_state,
                 items: snippets,
+                highlighter: &self.highlighter,
             },
             main_area,
         );
