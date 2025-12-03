@@ -1,6 +1,5 @@
 mod codesnippet;
 mod highlight;
-mod language;
 
 use codesnippet::*;
 use highlight::Highlighter;
