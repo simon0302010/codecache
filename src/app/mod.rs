@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::{
-    layout::Constraint::{Length, Min},
+    layout::Constraint::{Fill, Min},
     prelude::*,
     widgets::{Block, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
@@ -25,16 +25,11 @@ pub struct CodeCache<'a> {
     last_move_direction: String,
     highlighter: Highlighter,
     snippets: Vec<CodeSnippet<'a>>,
+    save_snippets: Vec<SaveSnippet>,
 }
 
 impl<'a> CodeCache<'a> {
     pub fn new(snippets: Vec<SaveSnippet>) -> Self {
-        let snippets: Vec<CodeSnippet<'a>> = snippets
-            .clone()
-            .into_iter()
-            .map(|snip| CodeSnippet::new(snip.title, snip.desc, snip.code))
-            .collect();
-
         CodeCache {
             running: true,
             scroll_state: ScrollbarState::default(),
@@ -42,7 +37,8 @@ impl<'a> CodeCache<'a> {
             last_move: Instant::now() - Duration::from_secs(1),
             last_move_direction: String::new(),
             highlighter: Highlighter::new(),
-            snippets,
+            snippets: convert_snippets(snippets.clone()),
+            save_snippets: snippets,
         }
     }
 
@@ -58,7 +54,7 @@ impl<'a> CodeCache<'a> {
     }
 
     fn draw(&mut self, frame: &mut Frame) {
-        let vertical = Layout::vertical([Length(1), Min(0), Length(1)]);
+        let vertical = Layout::vertical([Fill(1), Min(100), Fill(1)]);
         let [title_area, main_area, status_area] = vertical.areas(frame.area());
 
         // focused styles
@@ -132,7 +128,9 @@ impl<'a> CodeCache<'a> {
         if event::poll(Duration::from_millis(16)).expect("failed to poll evnet") {
             match event::read().expect("failed to read event") {
                 Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
-                    KeyCode::Char('q') | KeyCode::Char('Q') => self.running = false,
+                    KeyCode::Char('q') | KeyCode::Char('Q') => {
+                        self.running = false
+                    },
                     KeyCode::Down | KeyCode::PageDown => {
                         self.list_state.next();
                         self.scroll_state.next();
@@ -145,10 +143,28 @@ impl<'a> CodeCache<'a> {
                         self.last_move = Instant::now();
                         self.last_move_direction = "up".to_string();
                     }
+                    KeyCode::Enter => {
+                        self.save_snippets.push(SaveSnippet {
+                            title: "Hello World".to_string(),
+                            desc: "Hello World".to_string(),
+                            code: "fn main() {\n    println!(\"Hello World!\");\n}".to_string(),
+                        });
+                        self.snippets = convert_snippets(self.save_snippets.clone());
+                    }
                     _ => {}
                 },
                 _ => {}
             }
         }
     }
+}
+
+fn convert_snippets(snippets: Vec<SaveSnippet>) -> Vec<CodeSnippet<'static>> {
+    let snippets: Vec<CodeSnippet> = snippets
+        .clone()
+        .into_iter()
+        .map(|snip| CodeSnippet::new(snip.title, snip.desc, snip.code))
+        .collect();
+
+    snippets
 }
