@@ -42,7 +42,7 @@ impl<'a> CodeCache<'a> {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Vec<SaveSnippet> {
         let mut terminal = ratatui::init();
         while self.running {
             terminal
@@ -51,6 +51,7 @@ impl<'a> CodeCache<'a> {
             self.handle_events();
         }
         ratatui::restore();
+        self.save_snippets.clone()
     }
 
     fn draw(&mut self, frame: &mut Frame) {
@@ -128,9 +129,7 @@ impl<'a> CodeCache<'a> {
         if event::poll(Duration::from_millis(16)).expect("failed to poll evnet") {
             match event::read().expect("failed to read event") {
                 Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
-                    KeyCode::Char('q') | KeyCode::Char('Q') => {
-                        self.running = false
-                    },
+                    KeyCode::Char('q') | KeyCode::Char('Q') => self.running = false,
                     KeyCode::Down | KeyCode::PageDown => {
                         self.list_state.next();
                         self.scroll_state.next();
