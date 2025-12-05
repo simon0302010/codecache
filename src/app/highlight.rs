@@ -1,4 +1,5 @@
 use ansi_to_tui::IntoText;
+use ratatui::text::Text;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
@@ -17,7 +18,7 @@ impl Highlighter {
         }
     }
 
-    pub fn highlight(&self, code: String) -> ratatui::prelude::Text<'_> {
+    pub fn highlight(&self, code: &str) -> Text<'static> {
         /*let syntax = self
         .ps
         .find_syntax_by_first_line(code.as_str())
@@ -34,6 +35,8 @@ impl Highlighter {
             final_str.push_str(&escaped);
         }
 
-        final_str.into_text().unwrap_or_default()
+        let text = ansi_to_tui::IntoText::into_text(&final_str)
+            .unwrap_or_else(|_| Text::raw(code.to_string()));
+        text
     }
 }

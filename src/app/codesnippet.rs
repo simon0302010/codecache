@@ -16,7 +16,7 @@ pub struct SaveSnippet {
 }
 
 #[derive(Debug, Clone)]
-pub struct CodeSnippet<'a> {
+pub struct CodeSnippet {
     title: String,
     text: String,
     code: String,
@@ -24,16 +24,16 @@ pub struct CodeSnippet<'a> {
     code_style: Style,
     code_frame_style: Style,
     border_style: Style,
-    highlighted_code: Option<Text<'a>>,
+    highlighted_code: Option<Text<'static>>,
 }
 
 pub struct SnippetList<'a> {
     pub state: &'a mut ListState,
-    pub items: Vec<CodeSnippet<'a>>,
+    pub items: Vec<CodeSnippet>,
     pub highlighter: &'a Highlighter,
 }
 
-impl<'a> CodeSnippet<'a> {
+impl CodeSnippet {
     pub fn new<T: Into<String>>(title: T, text: T, code: T) -> Self {
         Self {
             text: text.into(),
@@ -55,7 +55,7 @@ impl<'a> CodeSnippet<'a> {
     }
 }
 
-impl<'a> Widget for CodeSnippet<'a> {
+impl Widget for CodeSnippet {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // Center the card horizontally
         let [_, block_area, _] = Layout::horizontal([Fill(1), Min(70), Fill(1)]).areas(area);
@@ -70,30 +70,26 @@ impl<'a> Widget for CodeSnippet<'a> {
         block.render(block_area, buf);
 
         let desc_lines = self.text.lines().count().max(1) as u16;
-        let code_lines = self.code.lines().count().max(1) as u16 + 2; // + 2 for border
+        let code_lines = self.code.lines().count().max(1) as u16 + 2;
 
-        // Split inner area: description (1 line), code (flexible)
         let [desc_area, code_area] =
             Layout::vertical([Length(desc_lines), Length(code_lines)]).areas(inner_area);
 
-        // Render description
         Paragraph::new(self.text)
             .style(self.text_style)
             .render(desc_area, buf);
 
-        // Render code block
         let code_block = Block::bordered().border_style(self.code_frame_style);
 
         let code_inner = code_block.inner(code_area);
         code_block.render(code_area, buf);
 
-        let raw_code_text = Text::raw(&self.code);
-        let code_text = match &self.highlighted_code {
+        let code_text = match self.highlighted_code {
             Some(highlighted) => highlighted,
-            None => &raw_code_text,
+            None => Text::raw(&self.code),
         };
 
-        Paragraph::new(code_text.clone())
+        Paragraph::new(code_text)
             .style(self.code_style)
             .render(code_inner, buf);
     }
@@ -108,7 +104,7 @@ impl<'a> ratatui::prelude::Widget for SnippetList<'a> {
         let builder = ListBuilder::new(move |context| {
             let mut item = items[context.index].clone();
 
-            item.highlighted_code = Some(highlighter.highlight(item.code.clone()));
+            item.highlighted_code = Some(highlighter.highlight(&item.code));
 
             item.text_style = Style::default().fg(Color::Rgb(120, 112, 108));
             item.border_style = Style::default().fg(Color::Rgb(124, 111, 100));

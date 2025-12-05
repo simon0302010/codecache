@@ -19,21 +19,21 @@ use ratatui::{
 };
 use tui_widget_list::ListState;
 
-pub struct CodeCache<'a> {
+pub struct CodeCache {
     running: bool,
     scroll_state: ScrollbarState,
     list_state: ListState,
     last_move: Instant,
     last_move_direction: String,
     highlighter: Highlighter,
-    snippets: Vec<CodeSnippet<'a>>,
+    snippets: Vec<CodeSnippet>,
     save_snippets: Vec<SaveSnippet>,
     clipboard: Clipboard,
     dialog: Dialog,
     dialog_field: String,
 }
 
-impl<'a> CodeCache<'a> {
+impl CodeCache {
     pub fn new(snippets: Vec<SaveSnippet>) -> Self {
         CodeCache {
             running: true,
@@ -42,7 +42,7 @@ impl<'a> CodeCache<'a> {
             last_move: Instant::now() - Duration::from_secs(1),
             last_move_direction: String::new(),
             highlighter: Highlighter::new(),
-            snippets: convert_snippets(snippets.clone()),
+            snippets: convert_snippets(&snippets),
             save_snippets: snippets,
             clipboard: Clipboard::new().expect("failed to initialize clipboard"),
             dialog: new_dialog(),
@@ -160,7 +160,7 @@ impl<'a> CodeCache<'a> {
                                     }
                                 }
                             }
-                            self.snippets = convert_snippets(self.save_snippets.clone());
+                            self.snippets = convert_snippets(&self.save_snippets);
                             self.dialog = new_dialog();
                             if self.dialog_field == "title" {
                                 self.dialog_field = "desc".to_string();
@@ -186,13 +186,13 @@ impl<'a> CodeCache<'a> {
                                 self.last_move_direction = "up".to_string();
                             }
                             KeyCode::Char('v') | KeyCode::Char('V') => {
-                                if let Ok(text) = self.clipboard.get_text() && !text.is_empty() {
+                                if let Ok(text) = self.clipboard.get_text() && !text.trim().is_empty() {
                                     self.save_snippets.push(SaveSnippet {
                                         title: String::new(),
                                         desc: String::new(),
                                         code: text,
                                     });
-                                    self.snippets = convert_snippets(self.save_snippets.clone());
+                                    self.snippets = convert_snippets(&self.save_snippets);
                                     self.dialog.open = true;
                                     self.dialog = self.dialog.title_top("Enter Title");
                                     self.dialog_field = "title".to_string();
@@ -209,6 +209,11 @@ impl<'a> CodeCache<'a> {
                                     }
                                 }
                             }
+                            KeyCode::Char('c') | KeyCode::Char('C') => {
+                                if let Some(idx) = self.list_state.selected && let Some(snippet) = self.save_snippets.get(idx) {
+                                    self.clipboard.set_text(snippet.code.clone()).expect("failed to copy code to clipboard");
+                                }
+                            }
                             _ => {}
                         }
                     }
@@ -220,14 +225,15 @@ impl<'a> CodeCache<'a> {
 }
 
 /// converts Vec<SaveSnippet> to Vec<CodeSnippet>
-fn convert_snippets(snippets: Vec<SaveSnippet>) -> Vec<CodeSnippet<'static>> {
-    let snippets: Vec<CodeSnippet> = snippets
-        .clone()
-        .into_iter()
-        .map(|snip| CodeSnippet::new(snip.title, snip.desc, snip.code))
-        .collect();
-
+fn convert_snippets(snippets: &[SaveSnippet]) -> Vec<CodeSnippet> {
     snippets
+        .iter()
+        .map(|snip| CodeSnippet::new(
+            snip.title.clone(),
+            snip.desc.clone(),
+            snip.code.clone(),
+        ))
+        .collect()
 }
 
 /// creates a new dialog with custom options
