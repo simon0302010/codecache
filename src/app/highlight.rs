@@ -1,4 +1,3 @@
-use ansi_to_tui::IntoText;
 use ratatui::text::Text;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
@@ -18,13 +17,18 @@ impl Highlighter {
         }
     }
 
-    pub fn highlight(&self, code: &str) -> Text<'static> {
+    pub fn highlight(&self, code: &str, lang: &str) -> Result<Text<'static>, Text<'static>> {
         /*let syntax = self
         .ps
         .find_syntax_by_first_line(code.as_str())
         .unwrap_or_else(|| self.ps.find_syntax_plain_text());*/
 
-        let syntax = self.ps.find_syntax_by_extension("rs").unwrap();
+        let syntax = match self.ps.find_syntax_by_extension(lang) {
+            Some(s) => s,
+            None => {
+                return Err(Text::raw(code.to_string()));
+            }
+        };
 
         let mut h = HighlightLines::new(syntax, &self.ts.themes["base16-eighties.dark"]);
 
@@ -37,6 +41,6 @@ impl Highlighter {
 
         let text = ansi_to_tui::IntoText::into_text(&final_str)
             .unwrap_or_else(|_| Text::raw(code.to_string()));
-        text
+        Ok(text)
     }
 }

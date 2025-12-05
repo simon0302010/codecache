@@ -13,6 +13,7 @@ pub struct SaveSnippet {
     pub title: String,
     pub desc: String,
     pub code: String,
+    pub lang: String,
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +26,7 @@ pub struct CodeSnippet {
     code_frame_style: Style,
     border_style: Style,
     highlighted_code: Option<Text<'static>>,
+    lang: String,
 }
 
 pub struct SnippetList<'a> {
@@ -34,7 +36,7 @@ pub struct SnippetList<'a> {
 }
 
 impl CodeSnippet {
-    pub fn new<T: Into<String>>(title: T, text: T, code: T) -> Self {
+    pub fn new<T: Into<String>>(title: T, text: T, code: T, lang: T) -> Self {
         Self {
             text: text.into(),
             code: code.into(),
@@ -44,6 +46,7 @@ impl CodeSnippet {
             code_frame_style: Style::default(),
             title: title.into(),
             highlighted_code: None,
+            lang: lang.into(),
         }
     }
 
@@ -104,7 +107,11 @@ impl<'a> ratatui::prelude::Widget for SnippetList<'a> {
         let builder = ListBuilder::new(move |context| {
             let mut item = items[context.index].clone();
 
-            item.highlighted_code = Some(highlighter.highlight(&item.code));
+            // TODO: implement error message later
+            item.highlighted_code = match highlighter.highlight(&item.code, &item.lang) {
+                Ok(s) => Some(s),
+                Err(s) => Some(s),
+            };
 
             item.text_style = Style::default().fg(Color::Rgb(120, 112, 108));
             item.border_style = Style::default().fg(Color::Rgb(124, 111, 100));

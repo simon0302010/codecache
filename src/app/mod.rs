@@ -7,13 +7,14 @@ pub use codesnippet::{SaveSnippet, SnippetList};
 use codesnippet::CodeSnippet;
 use highlight::Highlighter;
 use tui_dialog::{Dialog, centered_rect};
+use tui_popup::Popup;
 
 use std::time::{Duration, Instant};
 
 use arboard::Clipboard;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::{
-    layout::Constraint::{Fill, Min},
+    layout::Constraint::{Length, Min},
     prelude::*,
     widgets::{Block, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
@@ -31,6 +32,7 @@ pub struct CodeCache {
     clipboard: Clipboard,
     dialog: Dialog,
     dialog_field: String,
+    notification: Option<(String, Instant)>,
 }
 
 impl CodeCache {
@@ -47,7 +49,12 @@ impl CodeCache {
             clipboard: Clipboard::new().expect("failed to initialize clipboard"),
             dialog: new_dialog(),
             dialog_field: String::new(),
+            notification: None,
         }
+    }
+
+    pub fn notify(&mut self, msg: impl Into<String>) {
+        self.notification = Some((msg.into(), Instant::now()));
     }
 
     pub fn run(&mut self) -> Vec<SaveSnippet> {
@@ -63,7 +70,7 @@ impl CodeCache {
     }
 
     fn draw(&mut self, frame: &mut Frame) {
-        let vertical = Layout::vertical([Fill(1), Min(100), Fill(1)]);
+        let vertical = Layout::vertical([Length(1), Min(0), Length(1)]);
         let [title_area, main_area, status_area] = vertical.areas(frame.area());
 
         // focused styles
@@ -112,10 +119,11 @@ impl CodeCache {
         frame.render_widget(
             Block::new()
                 .title(format!(
-                    "{} snippets in storage; press v to paste from clipboard; press d to delete",
+                    "{} snippet(s) stored - press v to paste from clipboard, d to delete selected, c to copy selected, q to quit",
                     self.snippets.len()
                 ))
-                .title_alignment(ratatui::layout::Alignment::Center),
+                .title_alignment(ratatui::layout::Alignment::Center)
+                .title_style(Style::default().fg(Color::Cyan)),
             status_area,
         );
         frame.render_widget(
@@ -139,6 +147,12 @@ impl CodeCache {
             let dialog_area = centered_rect(frame.area(), 60, 10, 0, 0);
             frame.render_widget(self.dialog.clone(), dialog_area);
         }
+
+        if let Some((msg, shown_at)) = &self.notification {
+            if shown_at.elapsed() < Duration::from_secs(2) {
+                frame.render_widget(&Popup::new(msg.as_str()).title("Info"), frame.area());
+            }
+        }
     }
 
     fn handle_events(&mut self) {
@@ -158,6 +172,10 @@ impl CodeCache {
                                     if let Some(last) = self.save_snippets.last_mut() {
                                         last.desc = input;
                                     }
+                                } else if self.dialog_field == "lang" {
+                                    if let Some(last) = self.save_snippets.last_mut() {
+                                        last.lang = input;
+                                    }
                                 }
                             }
                             self.snippets = convert_snippets(&self.save_snippets);
@@ -166,6 +184,12 @@ impl CodeCache {
                                 self.dialog_field = "desc".to_string();
                                 self.dialog.open = true;
                                 self.dialog = self.dialog.title_top("Enter Description");
+                            } else if self.dialog_field == "desc" {
+                                self.dialog_field = "lang".to_string();
+                                self.dialog.open = true;
+                                self.dialog = self.dialog.title_top(
+                                    "Enter programming language extension (\"rs\" for rust)",
+                                );
                             } else {
                                 self.dialog_field = String::new();
                             }
@@ -186,16 +210,36 @@ impl CodeCache {
                                 self.last_move_direction = "up".to_string();
                             }
                             KeyCode::Char('v') | KeyCode::Char('V') => {
-                                if let Ok(text) = self.clipboard.get_text() && !text.trim().is_empty() {
-                                    self.save_snippets.push(SaveSnippet {
-                                        title: String::new(),
-                                        desc: String::new(),
-                                        code: text,
-                                    });
-                                    self.snippets = convert_snippets(&self.save_snippets);
-                                    self.dialog.open = true;
-                                    self.dialog = self.dialog.title_top("Enter Title");
-                                    self.dialog_field = "title".to_string();
+                                match self.clipboard.get_text() {
+                                    Ok(clipboard_text) => {
+                                        // clean up
+                                        match clipboard_text.find(|c: char| c.is_ascii() && !c.is_whitespace()) {
+                                            Some(_) => {}, // aaaaaaaaaaaaaa
+                                            None => return
+                                        }
+                                        let cleaned: String = clipboard_text
+                                            .chars()
+                                            .filter(|c| !c.is_control() || *c == '\n' || *c == '\t')
+                                            .collect();
+                                        let trimmed = cleaned.trim();
+                                        if !trimmed.is_empty() {
+                                            self.save_snippets.push(SaveSnippet {
+                                                title: String::new(),
+                                                desc: String::new(),
+                                                code: trimmed.to_string(),
+                                                lang: "txt".to_string(),
+                                            });
+                                            self.snippets = convert_snippets(&self.save_snippets);
+                                            self.dialog.open = true;
+                                            self.dialog = self.dialog.title_top("Enter Title");
+                                            self.dialog_field = "title".to_string();
+                                        } else {
+                                            self.notify("Clipboard is empty");
+                                        }
+                                    }
+                                    Err(_) => {
+                                        self.notify("Failed to access clipboard");
+                                    }
                                 }
                             }
                             KeyCode::Char('d') | KeyCode::Char('D') => {
@@ -210,8 +254,12 @@ impl CodeCache {
                                 }
                             }
                             KeyCode::Char('c') | KeyCode::Char('C') => {
-                                if let Some(idx) = self.list_state.selected && let Some(snippet) = self.save_snippets.get(idx) {
-                                    self.clipboard.set_text(snippet.code.clone()).expect("failed to copy code to clipboard");
+                                if let Some(idx) = self.list_state.selected
+                                    && let Some(snippet) = self.save_snippets.get(idx)
+                                {
+                                    self.clipboard
+                                        .set_text(snippet.code.clone())
+                                        .expect("failed to copy code to clipboard");
                                 }
                             }
                             _ => {}
@@ -228,16 +276,18 @@ impl CodeCache {
 fn convert_snippets(snippets: &[SaveSnippet]) -> Vec<CodeSnippet> {
     snippets
         .iter()
-        .map(|snip| CodeSnippet::new(
-            snip.title.clone(),
-            snip.desc.clone(),
-            snip.code.clone(),
-        ))
+        .map(|snip| {
+            CodeSnippet::new(
+                snip.title.clone(),
+                snip.desc.clone(),
+                snip.code.clone(),
+                snip.lang.clone(),
+            )
+        })
         .collect()
 }
 
 /// creates a new dialog with custom options
 fn new_dialog() -> Dialog {
-    Dialog::default()
-        .style(Style::default().fg(Color::DarkGray))
+    Dialog::default().style(Style::default().fg(Color::LightBlue))
 }
