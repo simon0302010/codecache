@@ -10,6 +10,7 @@ use tui_dialog::{Dialog, centered_rect};
 
 use std::time::{Duration, Instant};
 
+use arboard::Clipboard;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::{
     layout::Constraint::{Fill, Min},
@@ -17,7 +18,6 @@ use ratatui::{
     widgets::{Block, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 use tui_widget_list::ListState;
-use arboard::Clipboard;
 
 pub struct CodeCache<'a> {
     running: bool,
@@ -162,7 +162,13 @@ impl<'a> CodeCache<'a> {
                             }
                             self.snippets = convert_snippets(self.save_snippets.clone());
                             self.dialog = new_dialog();
-                            self.dialog_field = String::new();
+                            if self.dialog_field == "title" {
+                                self.dialog_field = "desc".to_string();
+                                self.dialog.open = true;
+                                self.dialog = self.dialog.title_top("Enter Description");
+                            } else {
+                                self.dialog_field = String::new();
+                            }
                         }
                     } else {
                         match key.code {
@@ -180,8 +186,15 @@ impl<'a> CodeCache<'a> {
                                 self.last_move_direction = "up".to_string();
                             }
                             KeyCode::Char('v') | KeyCode::Char('V') => {
-                                if self.clipboard.get_text().is_ok() {
+                                if let Ok(text) = self.clipboard.get_text() && !text.is_empty() {
+                                    self.save_snippets.push(SaveSnippet {
+                                        title: String::new(),
+                                        desc: String::new(),
+                                        code: text,
+                                    });
+                                    self.snippets = convert_snippets(self.save_snippets.clone());
                                     self.dialog.open = true;
+                                    self.dialog = self.dialog.title_top("Enter Title");
                                     self.dialog_field = "title".to_string();
                                 }
                             }
@@ -209,6 +222,5 @@ fn convert_snippets(snippets: Vec<SaveSnippet>) -> Vec<CodeSnippet<'static>> {
 /// creates a new dialog with custom options
 fn new_dialog() -> Dialog {
     Dialog::default()
-        .title_top("Enter Snippet Name")
         .style(Style::default().fg(Color::DarkGray))
 }
