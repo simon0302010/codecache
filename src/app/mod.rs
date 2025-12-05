@@ -6,6 +6,7 @@ pub use codesnippet::{SaveSnippet, SnippetList};
 
 use codesnippet::CodeSnippet;
 use highlight::Highlighter;
+use tui_dialog::{Dialog, centered_rect};
 
 use std::time::{Duration, Instant};
 
@@ -16,6 +17,7 @@ use ratatui::{
     widgets::{Block, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 use tui_widget_list::ListState;
+use arboard::Clipboard;
 
 pub struct CodeCache<'a> {
     running: bool,
@@ -26,6 +28,9 @@ pub struct CodeCache<'a> {
     highlighter: Highlighter,
     snippets: Vec<CodeSnippet<'a>>,
     save_snippets: Vec<SaveSnippet>,
+    clipboard: Clipboard,
+    dialog: Dialog,
+    dialog_field: String,
 }
 
 impl<'a> CodeCache<'a> {
@@ -39,6 +44,9 @@ impl<'a> CodeCache<'a> {
             highlighter: Highlighter::new(),
             snippets: convert_snippets(snippets.clone()),
             save_snippets: snippets,
+            clipboard: Clipboard::new().expect("failed to initialize clipboard"),
+            dialog: new_dialog(),
+            dialog_field: String::new(),
         }
     }
 
@@ -103,7 +111,10 @@ impl<'a> CodeCache<'a> {
         );
         frame.render_widget(
             Block::new()
-                .title(format!("{} snippets in storage", self.snippets.len()))
+                .title(format!(
+                    "{} snippets in storage; press v to paste from clipboard",
+                    self.snippets.len()
+                ))
                 .title_alignment(ratatui::layout::Alignment::Center),
             status_area,
         );
@@ -123,41 +134,68 @@ impl<'a> CodeCache<'a> {
             }),
             &mut self.scroll_state,
         );
+
+        if self.dialog.open {
+            let dialog_area = centered_rect(frame.area(), 60, 10, 0, 0);
+            frame.render_widget(self.dialog.clone(), dialog_area);
+        }
     }
 
     fn handle_events(&mut self) {
         if event::poll(Duration::from_millis(16)).expect("failed to poll evnet") {
             match event::read().expect("failed to read event") {
-                Event::Key(key) if key.kind == KeyEventKind::Press => match key.code {
-                    KeyCode::Char('q') | KeyCode::Char('Q') => self.running = false,
-                    KeyCode::Down | KeyCode::PageDown => {
-                        self.list_state.next();
-                        self.scroll_state.next();
-                        self.last_move = Instant::now();
-                        self.last_move_direction = "down".to_string();
+                Event::Key(key) if key.kind == KeyEventKind::Press => {
+                    if self.dialog.open {
+                        self.dialog.key_action(&key.code);
+                        if self.dialog.submitted {
+                            let input = self.dialog.submitted_input.clone();
+                            if !input.is_empty() {
+                                if self.dialog_field == "title" {
+                                    if let Some(last) = self.save_snippets.last_mut() {
+                                        last.title = input;
+                                    }
+                                } else if self.dialog_field == "desc" {
+                                    if let Some(last) = self.save_snippets.last_mut() {
+                                        last.desc = input;
+                                    }
+                                }
+                            }
+                            self.snippets = convert_snippets(self.save_snippets.clone());
+                            self.dialog = new_dialog();
+                            self.dialog_field = String::new();
+                        }
+                    } else {
+                        match key.code {
+                            KeyCode::Char('q') | KeyCode::Char('Q') => self.running = false,
+                            KeyCode::Down | KeyCode::PageDown => {
+                                self.list_state.next();
+                                self.scroll_state.next();
+                                self.last_move = Instant::now();
+                                self.last_move_direction = "down".to_string();
+                            }
+                            KeyCode::Up | KeyCode::PageUp => {
+                                self.list_state.previous();
+                                self.scroll_state.prev();
+                                self.last_move = Instant::now();
+                                self.last_move_direction = "up".to_string();
+                            }
+                            KeyCode::Char('v') | KeyCode::Char('V') => {
+                                if self.clipboard.get_text().is_ok() {
+                                    self.dialog.open = true;
+                                    self.dialog_field = "title".to_string();
+                                }
+                            }
+                            _ => {}
+                        }
                     }
-                    KeyCode::Up | KeyCode::PageUp => {
-                        self.list_state.previous();
-                        self.scroll_state.prev();
-                        self.last_move = Instant::now();
-                        self.last_move_direction = "up".to_string();
-                    }
-                    KeyCode::Enter => {
-                        self.save_snippets.push(SaveSnippet {
-                            title: "Hello World".to_string(),
-                            desc: "Hello World".to_string(),
-                            code: "fn main() {\n    println!(\"Hello World!\");\n}".to_string(),
-                        });
-                        self.snippets = convert_snippets(self.save_snippets.clone());
-                    }
-                    _ => {}
-                },
+                }
                 _ => {}
             }
         }
     }
 }
 
+/// converts Vec<SaveSnippet> to Vec<CodeSnippet>
 fn convert_snippets(snippets: Vec<SaveSnippet>) -> Vec<CodeSnippet<'static>> {
     let snippets: Vec<CodeSnippet> = snippets
         .clone()
@@ -166,4 +204,11 @@ fn convert_snippets(snippets: Vec<SaveSnippet>) -> Vec<CodeSnippet<'static>> {
         .collect();
 
     snippets
+}
+
+/// creates a new dialog with custom options
+fn new_dialog() -> Dialog {
+    Dialog::default()
+        .title_top("Enter Snippet Name")
+        .style(Style::default().fg(Color::DarkGray))
 }
