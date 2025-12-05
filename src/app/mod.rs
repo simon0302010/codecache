@@ -112,7 +112,7 @@ impl<'a> CodeCache<'a> {
         frame.render_widget(
             Block::new()
                 .title(format!(
-                    "{} snippets in storage; press v to paste from clipboard",
+                    "{} snippets in storage; press v to paste from clipboard; press d to delete",
                     self.snippets.len()
                 ))
                 .title_alignment(ratatui::layout::Alignment::Center),
@@ -196,6 +196,17 @@ impl<'a> CodeCache<'a> {
                                     self.dialog.open = true;
                                     self.dialog = self.dialog.title_top("Enter Title");
                                     self.dialog_field = "title".to_string();
+                                }
+                            }
+                            KeyCode::Char('d') | KeyCode::Char('D') => {
+                                if let Some(idx) = self.list_state.selected {
+                                    self.save_snippets.remove(idx);
+                                    self.snippets.remove(idx);
+                                    if self.save_snippets.is_empty() {
+                                        self.list_state.select(None);
+                                    } else if idx >= self.save_snippets.len() {
+                                        self.list_state.select(Some(idx - 1));
+                                    }
                                 }
                             }
                             _ => {}
