@@ -23,6 +23,7 @@ Use the following key combinations to control the software:
 - `v` to paste from clipboard
 - `d` to delete the selected snippet
 - `c` to copy the selected snippet
+- `e` to edit the selected snippet
 - `q` to quit
 
 ## License

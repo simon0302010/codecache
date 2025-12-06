@@ -32,6 +32,7 @@ pub struct CodeCache {
     clipboard: Clipboard,
     dialog: Dialog,
     dialog_field: String,
+    edit_idx: usize,
     notification: Option<(String, Instant)>,
 }
 
@@ -50,6 +51,7 @@ impl CodeCache {
             dialog: new_dialog(),
             dialog_field: String::new(),
             notification: None,
+            edit_idx: 0,
         }
     }
 
@@ -119,7 +121,7 @@ impl CodeCache {
         frame.render_widget(
             Block::new()
                 .title(format!(
-                    "{} snippet(s) stored - press v to paste from clipboard, d to delete selected, c to copy selected, q to quit",
+                    "{} snippet(s) stored - press v to paste from clipboard, d to delete selected, c to copy selected, q to quit, e to edit",
                     self.snippets.len()
                 ))
                 .title_alignment(ratatui::layout::Alignment::Center)
@@ -174,16 +176,16 @@ impl CodeCache {
                             let input = self.dialog.submitted_input.clone();
                             if !input.is_empty() {
                                 if self.dialog_field == "title" {
-                                    if let Some(last) = self.save_snippets.last_mut() {
-                                        last.title = input;
+                                    if let Some(item) = self.save_snippets.get_mut(self.edit_idx) {
+                                        item.title = input;
                                     }
                                 } else if self.dialog_field == "desc" {
-                                    if let Some(last) = self.save_snippets.last_mut() {
-                                        last.desc = input;
+                                    if let Some(item) = self.save_snippets.get_mut(self.edit_idx) {
+                                        item.desc = input;
                                     }
                                 } else if self.dialog_field == "lang" {
-                                    if let Some(last) = self.save_snippets.last_mut() {
-                                        last.lang = input;
+                                    if let Some(item) = self.save_snippets.get_mut(self.edit_idx) {
+                                        item.lang = input;
                                     }
                                 }
                             }
@@ -222,11 +224,15 @@ impl CodeCache {
                                 match self.clipboard.get_text() {
                                     Ok(clipboard_text) => {
                                         // clean up
-                                        match clipboard_text.find(|c: char| {
-                                            c.is_ascii() && !c.is_whitespace() && !c.is_control()
-                                        }) {
-                                            Some(_) => {} // aaaaaaaaaaaaaa
-                                            None => return,
+                                        if clipboard_text
+                                            .find(|c: char| {
+                                                c.is_ascii()
+                                                    && !c.is_whitespace()
+                                                    && !c.is_control()
+                                            })
+                                            .is_none()
+                                        {
+                                            return;
                                         }
                                         let cleaned: String = clipboard_text
                                             .chars()
@@ -244,6 +250,8 @@ impl CodeCache {
                                             self.dialog.open = true;
                                             self.dialog = self.dialog.title_top("Enter Title");
                                             self.dialog_field = "title".to_string();
+                                            self.edit_idx =
+                                                self.save_snippets.len().saturating_sub(1);
                                         } else {
                                             self.notify("Clipboard is empty");
                                         }
@@ -271,6 +279,14 @@ impl CodeCache {
                                     self.clipboard
                                         .set_text(snippet.code.clone())
                                         .expect("failed to copy code to clipboard");
+                                }
+                            }
+                            KeyCode::Char('e') | KeyCode::Char('E') => {
+                                if let Some(idx) = self.list_state.selected {
+                                    self.edit_idx = idx;
+                                    self.dialog.open = true;
+                                    self.dialog = self.dialog.title_top("Enter Title");
+                                    self.dialog_field = "title".to_string();
                                 }
                             }
                             // TODO: add editing of snippets
