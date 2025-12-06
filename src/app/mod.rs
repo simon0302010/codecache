@@ -167,7 +167,7 @@ impl CodeCache {
     }
 
     fn handle_events(&mut self) {
-        if event::poll(Duration::from_millis(16)).expect("failed to poll evnet") {
+        if event::poll(Duration::from_millis(16)).expect("failed to poll event") {
             match event::read().expect("failed to read event") {
                 Event::Key(key) if key.kind == KeyEventKind::Press => {
                     if self.dialog.open {
@@ -276,9 +276,9 @@ impl CodeCache {
                                 if let Some(idx) = self.list_state.selected
                                     && let Some(snippet) = self.save_snippets.get(idx)
                                 {
-                                    self.clipboard
-                                        .set_text(snippet.code.clone())
-                                        .expect("failed to copy code to clipboard");
+                                    if self.clipboard.set_text(snippet.code.clone()).is_err() {
+                                        self.notify("Failed to copy code to clipboard");
+                                    }
                                 }
                             }
                             KeyCode::Char('e') | KeyCode::Char('E') => {
