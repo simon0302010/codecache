@@ -146,11 +146,16 @@ impl CodeCache {
         if self.dialog.open {
             let dialog_area = centered_rect(frame.area(), 60, 10, 0, 0);
             frame.render_widget(self.dialog.clone(), dialog_area);
+        } else {
+            // clear area if its closed
+            let dialog_area = centered_rect(frame.area(), 60, 10, 0, 0);
+            frame.render_widget(Block::new(), dialog_area);
         }
+
 
         if let Some((msg, shown_at)) = &self.notification {
             if shown_at.elapsed() < Duration::from_secs(2) {
-                frame.render_widget(&Popup::new(msg.as_str()).title("Info"), frame.area());
+                frame.render_widget(&Popup::new(msg.as_str()).title("Info").style(Style::default().fg(Color::LightBlue)), frame.area());
             }
         }
     }
@@ -213,7 +218,7 @@ impl CodeCache {
                                 match self.clipboard.get_text() {
                                     Ok(clipboard_text) => {
                                         // clean up
-                                        match clipboard_text.find(|c: char| c.is_ascii() && !c.is_whitespace()) {
+                                        match clipboard_text.find(|c: char| c.is_ascii() && !c.is_whitespace() && !c.is_control()) {
                                             Some(_) => {}, // aaaaaaaaaaaaaa
                                             None => return
                                         }
@@ -221,7 +226,7 @@ impl CodeCache {
                                             .chars()
                                             .filter(|c| !c.is_control() || *c == '\n' || *c == '\t')
                                             .collect();
-                                        let trimmed = cleaned.trim();
+                                        let trimmed = cleaned.trim_ascii_start();
                                         if !trimmed.is_empty() {
                                             self.save_snippets.push(SaveSnippet {
                                                 title: String::new(),
@@ -262,6 +267,7 @@ impl CodeCache {
                                         .expect("failed to copy code to clipboard");
                                 }
                             }
+                            // TODO: add editing of snippets
                             _ => {}
                         }
                     }

@@ -1,38 +1,8 @@
 [
   {
-    "title": "",
-    "desc": "",
-    "code": "❯",
-    "lang": "txt"
-  },
-  {
-    "title": "",
-    "desc": "",
-    "code": "❯",
-    "lang": "txt"
-  },
-  {
-    "title": "",
-    "desc": "",
-    "code": "❯",
-    "lang": "txt"
-  },
-  {
-    "title": "",
-    "desc": "",
-    "code": "clipboard_text.find(|c: char| c.is_ascii() && !c.is_whitespace())",
-    "lang": "txt"
-  },
-  {
-    "title": "",
-    "desc": "",
-    "code": "4 snippet(s) stored - press v to paste from clipboard, d to delete selected, c to copy selected, q to quit",
-    "lang": "txt"
-  },
-  {
-    "title": "",
-    "desc": "",
-    "code": "4 snippet(s) stored - press v to paste from clipboard, d to delete selected, c to copy selected, q to quit",
-    "lang": "txt"
+    "title": "Snippet Convert",
+    "desc": "Snippet Convert",
+    "code": "/// converts Vec<SaveSnippet> to Vec<CodeSnippet>\nfn convert_snippets(snippets: &[SaveSnippet]) -> Vec<CodeSnippet> {\n    snippets\n        .iter()\n        .map(|snip| {\n            CodeSnippet::new(\n                snip.title.clone(),\n                snip.desc.clone(),\n                snip.code.clone(),\n                snip.lang.clone(),\n            )\n        })\n        .collect()\n}",
+    "lang": "rs"
   }
 ]
