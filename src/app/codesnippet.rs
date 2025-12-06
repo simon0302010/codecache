@@ -51,8 +51,8 @@ impl CodeSnippet {
     }
 
     pub fn height(&self) -> u16 {
-        let description_lines = self.text.lines().count() as u16;
-        let code_lines = self.code.lines().count() as u16;
+        let description_lines = (self.text.lines().count() as u16).max(1);
+        let code_lines = (self.code.lines().count() as u16).max(1);
         let border_height = 4;
         description_lines + code_lines + border_height
     }

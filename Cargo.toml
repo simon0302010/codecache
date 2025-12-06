@@ -1,5 +1,8 @@
 [package]
 name = "codecache"
+description = "A terminal-based code snippet manager with syntax highlighting."
+license = "GPL-3.0-only"
+readme = "README.md"
 version = "0.1.0"
 edition = "2024"
 
@@ -14,3 +17,4 @@ serde_json = "1.0"
 arboard = { version = "3", features = ["wayland-data-control"] }
 tui-dialog = "0.4"
 tui-popup = "0.6"
+dirs = "6.0"

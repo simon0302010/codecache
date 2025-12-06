@@ -1,8 +1,0 @@
-[
-  {
-    "title": "Snippet Convert",
-    "desc": "Snippet Convert",
-    "code": "/// converts Vec<SaveSnippet> to Vec<CodeSnippet>\nfn convert_snippets(snippets: &[SaveSnippet]) -> Vec<CodeSnippet> {\n    snippets\n        .iter()\n        .map(|snip| {\n            CodeSnippet::new(\n                snip.title.clone(),\n                snip.desc.clone(),\n                snip.code.clone(),\n                snip.lang.clone(),\n            )\n        })\n        .collect()\n}",
-    "lang": "rs"
-  }
-]

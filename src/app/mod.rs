@@ -152,10 +152,14 @@ impl CodeCache {
             frame.render_widget(Block::new(), dialog_area);
         }
 
-
         if let Some((msg, shown_at)) = &self.notification {
             if shown_at.elapsed() < Duration::from_secs(2) {
-                frame.render_widget(&Popup::new(msg.as_str()).title("Info").style(Style::default().fg(Color::LightBlue)), frame.area());
+                frame.render_widget(
+                    &Popup::new(msg.as_str())
+                        .title("Info")
+                        .style(Style::default().fg(Color::LightBlue)),
+                    frame.area(),
+                );
             }
         }
     }
@@ -218,9 +222,11 @@ impl CodeCache {
                                 match self.clipboard.get_text() {
                                     Ok(clipboard_text) => {
                                         // clean up
-                                        match clipboard_text.find(|c: char| c.is_ascii() && !c.is_whitespace() && !c.is_control()) {
-                                            Some(_) => {}, // aaaaaaaaaaaaaa
-                                            None => return
+                                        match clipboard_text.find(|c: char| {
+                                            c.is_ascii() && !c.is_whitespace() && !c.is_control()
+                                        }) {
+                                            Some(_) => {} // aaaaaaaaaaaaaa
+                                            None => return,
                                         }
                                         let cleaned: String = clipboard_text
                                             .chars()
