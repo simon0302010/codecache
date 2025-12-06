@@ -1,5 +1,6 @@
 mod codesnippet;
 mod highlight;
+mod language;
 
 // export for main.rs
 pub use codesnippet::{SaveSnippet, SnippetList};
@@ -121,8 +122,9 @@ impl CodeCache {
         frame.render_widget(
             Block::new()
                 .title(format!(
-                    "{} snippet(s) stored - press v to paste from clipboard, d to delete selected, c to copy selected, q to quit, e to edit",
-                    self.snippets.len()
+                    "{} snippet(s) stored ({} lines) - press v to paste from clipboard, d to delete selected, c to copy selected, q to quit, e to edit",
+                    self.snippets.len(),
+                    self.save_snippets.iter().map(|s| s.code.lines().count()).sum::<usize>()
                 ))
                 .title_alignment(ratatui::layout::Alignment::Center)
                 .title_style(Style::default().fg(Color::Cyan)),

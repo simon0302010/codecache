@@ -6,7 +6,7 @@ use ratatui::{
 use serde::{Deserialize, Serialize};
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
-use crate::app::highlight::Highlighter;
+use crate::app::{highlight::Highlighter, language::get_lang};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SaveSnippet {
@@ -82,7 +82,10 @@ impl Widget for CodeSnippet {
             .style(self.text_style)
             .render(desc_area, buf);
 
-        let code_block = Block::bordered().border_style(self.code_frame_style);
+        let code_block = Block::bordered()
+            .border_style(self.code_frame_style)
+            .title(get_lang(&self.lang))
+            .title_alignment(Alignment::Center);
 
         let code_inner = code_block.inner(code_area);
         code_block.render(code_area, buf);
